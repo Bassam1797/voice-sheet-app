@@ -7,7 +7,6 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="assets/style.css">
   <meta name="theme-color" content="#ffffff">
-  <!-- SheetJS for Excel export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -17,7 +16,26 @@
       <button id="micBtn" title="Start/Stop microphone">Mic ▶</button>
       <button id="undoBtn" title="Undo">Undo</button>
       <button id="redoBtn" title="Redo">Redo</button>
+
+      <div class="nav-controls">
+        <label>Direction:
+          <select id="advanceDir">
+            <option value="right" selected>Right →</option>
+            <option value="left">← Left</option>
+            <option value="down">Down ↓</option>
+            <option value="up">↑ Up</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="autoAdvance" checked> Auto-advance</label>
+        <label>Silence (ms): <input type="number" id="silenceMs" value="1000" min="200" step="100" style="width:6.5em"></label>
+        <label title="Only accept numbers (digits or number words)"><input type="checkbox" id="numbersOnly" checked> Numbers-only</label>
+        <label title="Auto-wrap rows when moving right/left"><input type="checkbox" id="wrapRows" checked> Wrap rows</label>
+        <label title="After N entries in a row, wrap to next row (Right/Left only)">Block width: <input type="number" id="blockWidth" value="26" min="1" max="26" style="width:4.5em"></label>
+      </div>
+
       <div class="export">
+        <button id="importBtn">Import Excel/CSV</button>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none">
         <button id="exportXlsxBtn">Export ⟶ Excel</button>
         <button id="exportCsvBtn">Export ⟶ CSV</button>
       </div>
@@ -27,6 +45,10 @@
         <button id="loadSheetBtn">Load</button>
         <button id="newSheetBtn" title="New sheet">New</button>
         <button id="clearSheetBtn" title="Clear current sheet">Clear</button>
+      </div>
+      <div class="history">
+        <button id="snapshotBtn" title="Save a snapshot">Snapshot</button>
+        <select id="historySelect" title="Restore a previous snapshot"><option value="">History…</option></select>
       </div>
     </div>
   </header>
@@ -52,7 +74,7 @@
         <li><b>select B7</b> → move cursor to B7 (no write)</li>
         <li><b>row 3 values 10 11 12</b> → fill row 3 from column A onward</li>
         <li><b>column C from 2 values 5 6 7</b> → fill col C starting row 2</li>
-        <li><b>next 8 9 10</b> → fill across the active row from the active cell</li>
+        <li><b>next 8 9 10</b> → fill across from the active cell</li>
         <li><b>undo</b>, <b>redo</b>, <b>new sheet</b>, <b>clear sheet</b></li>
         <li><b>save sheet "Week 1"</b>, <b>load sheet "Week 1"</b></li>
       </ul>
@@ -61,32 +83,47 @@
 
   <script type="module">
     import { createGrid, getActive, setActive, getData, setCell, setRowValues, setColumnValues, clearGrid, newGrid, onInputEdit } from './src/grid.js';
-    import { startListening, stopListening, setHeardCallback, parseAndExecute } from './src/speech.js';
-    import { exportToExcel, exportToCsv } from './src/export.js';
-    import { saveSheet, loadSheet } from './src/storage.js';
+    import { startListening, stopListening, setHeardCallback, parseAndExecute, setAdvanceConfig, setWrapConfig, setListeningIndicator } from './src/speech.js';
+    import { exportToExcel, exportToCsv, importFromFile } from './src/export.js';
+    import { saveSheet, loadSheet, snapshotNow, listSnapshots, restoreSnapshot } from './src/storage.js';
 
-    // PWA SW
     if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
 
     const gridEl = document.getElementById('gridContainer');
-    createGrid(gridEl, 100, 26); // 100 rows, 26 cols (A-Z)
+    createGrid(gridEl, 100, 26);
 
     // UI hooks
     const micBtn = document.getElementById('micBtn');
     const micStatus = document.getElementById('micStatus');
     const heardText = document.getElementById('heardText');
     const activeCellEl = document.getElementById('activeCell');
+    const sheetNameInput = document.getElementById('sheetName');
 
     document.getElementById('undoBtn').addEventListener('click', () => onInputEdit('undo'));
     document.getElementById('redoBtn').addEventListener('click', () => onInputEdit('redo'));
 
-    document.getElementById('exportXlsxBtn').addEventListener('click', () => exportToExcel(getData()));
-    document.getElementById('exportCsvBtn').addEventListener('click', () => exportToCsv(getData()));
+    document.getElementById('exportXlsxBtn').addEventListener('click', () => exportToExcel(getData(), sheetNameInput.value));
+    document.getElementById('exportCsvBtn').addEventListener('click', () => exportToCsv(getData(), sheetNameInput.value));
 
-    const sheetNameInput = document.getElementById('sheetName');
+    document.getElementById('importBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const data = await importFromFile(file);
+      if (data && data.length) {
+        newGrid(gridEl, data.length, data[0]?.length || 26);
+        setTimeout(()=>window.__importData(data), 0);
+      } else {
+        alert('No data found in file.');
+      }
+      e.target.value = "";
+    });
+
     document.getElementById('saveSheetBtn').addEventListener('click', () => saveSheet(sheetNameInput.value, getData()));
     document.getElementById('loadSheetBtn').addEventListener('click', async () => {
       const name = sheetNameInput.value;
+      if (!name) return alert('Enter a sheet name first.');
+      if (!confirm('⚠️ Loading will replace the current sheet. Continue?')) return;
       const data = await loadSheet(name);
       if (data) {
         newGrid(gridEl, data.length, data[0]?.length || 26);
@@ -95,14 +132,69 @@
         alert('No saved sheet with that name.');
       }
     });
-    document.getElementById('newSheetBtn').addEventListener('click', () => newGrid(gridEl, 100, 26));
-    document.getElementById('clearSheetBtn').addEventListener('click', () => clearGrid());
+    document.getElementById('newSheetBtn').addEventListener('click', () => {
+      if (!confirm('Create a new blank sheet? Unsaved changes will be lost.')) return;
+      newGrid(gridEl, 100, 26);
+    });
+    document.getElementById('clearSheetBtn').addEventListener('click', () => {
+      if (confirm("⚠️ This will erase all cells in the current sheet. Are you sure?")) {
+        clearGrid();
+      }
+    });
+
+    // History snapshots
+    const histSelect = document.getElementById('historySelect');
+    function refreshHistory() {
+      const items = listSnapshots(sheetNameInput.value);
+      histSelect.innerHTML = '<option value="">&nbsp;History…</option>' + items.map(i=>`<option value="${i.key}">${i.label}</option>`).join('');
+    }
+    document.getElementById('snapshotBtn').addEventListener('click', () => {
+      const ok = snapshotNow(sheetNameInput.value, getData());
+      if (ok) { refreshHistory(); alert('Snapshot saved.'); }
+    });
+    histSelect.addEventListener('change', async (e) => {
+      const key = e.target.value; if (!key) return;
+      if (!confirm('Restore this snapshot? Current sheet will be replaced.')) { e.target.value=''; return; }
+      const data = await restoreSnapshot(key);
+      if (data) {
+        newGrid(gridEl, data.length, data[0]?.length || 26);
+        setTimeout(()=>window.__importData(data), 0);
+      }
+      e.target.value='';
+    });
+    refreshHistory();
 
     // Active cell updates
     window.__onActiveChange = () => { activeCellEl.textContent = getActive(); };
 
+    // Direction + auto-advance + wrap config
+    const dirSel = document.getElementById('advanceDir');
+    const autoChk = document.getElementById('autoAdvance');
+    const silInp = document.getElementById('silenceMs');
+    const numbersOnly = document.getElementById('numbersOnly');
+    const wrapRows = document.getElementById('wrapRows');
+    const blockWidth = document.getElementById('blockWidth');
+
+    function pushAdvanceConfig() {
+      setAdvanceConfig({
+        direction: dirSel.value,
+        enabled: autoChk.checked,
+        silenceMs: Math.max(200, +silInp.value || 1000),
+        numbersOnly: numbersOnly.checked
+      });
+      setWrapConfig({
+        wrapRows: wrapRows.checked,
+        blockWidth: Math.max(1, Math.min(26, +blockWidth.value || 26))
+      });
+    }
+    [dirSel, autoChk, silInp, numbersOnly, wrapRows, blockWidth].forEach(el => el.addEventListener('change', pushAdvanceConfig));
+    silInp.addEventListener('input', pushAdvanceConfig);
+    pushAdvanceConfig();
+
     // Speech hooks
     setHeardCallback((t)=>{ heardText.textContent = t || '–'; });
+    setListeningIndicator(true);
+
     micBtn.addEventListener('click', async () => {
       if (micStatus.textContent === 'off') {
         const ok = await startListening((phrase) => parseAndExecute(phrase));
