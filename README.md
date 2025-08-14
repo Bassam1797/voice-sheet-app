@@ -37,6 +37,3 @@ git commit -m "feat: initial voice-to-spreadsheet app"
 git push origin main
 ```
 To enable GitHub Pages (optional): Settings → Pages → Deploy from branch → `main` / `/root`. Then visit the provided URL.
-
-## License
-MIT — do whatever you want, no warranty.
