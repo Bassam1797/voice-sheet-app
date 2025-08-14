@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voice Sheet App</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="assets/style.css">
+  <meta name="theme-color" content="#ffffff">
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🗣️ Voice Sheet</div>
+    <div class="controls">
+      <button id="micBtn" title="Start/Stop microphone">Mic ▶</button>
+      <button id="undoBtn" title="Undo">Undo</button>
+      <button id="redoBtn" title="Redo">Redo</button>
+      <div class="export">
+        <button id="exportXlsxBtn">Export ⟶ Excel</button>
+        <button id="exportCsvBtn">Export ⟶ CSV</button>
+      </div>
+      <div class="persistence">
+        <input id="sheetName" placeholder='Sheet name (e.g., "Week 1")'>
+        <button id="saveSheetBtn">Save</button>
+        <button id="loadSheetBtn">Load</button>
+        <button id="newSheetBtn" title="New sheet">New</button>
+        <button id="clearSheetBtn" title="Clear current sheet">Clear</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="status">
+      <div>Active cell: <span id="activeCell">A1</span></div>
+      <div>Mic: <span id="micStatus">off</span></div>
+      <div>Heard: <span id="heardText">–</span></div>
+      <div class="hint">
+        Try: <code>cell A1 42</code>, <code>row 2 values 3 4 5</code>, <code>column C from 1 values 7 8</code>, <code>next 9 10</code>, <code>select B5</code>
+      </div>
+    </section>
+
+    <section id="gridContainer" class="grid-container"></section>
+  </main>
+
+  <footer>
+    <details>
+      <summary>Voice command grammar</summary>
+      <ul>
+        <li><b>cell A1 42</b> → put 42 in A1</li>
+        <li><b>select B7</b> → move cursor to B7 (no write)</li>
+        <li><b>row 3 values 10 11 12</b> → fill row 3 from column A onward</li>
+        <li><b>column C from 2 values 5 6 7</b> → fill col C starting row 2</li>
+        <li><b>next 8 9 10</b> → fill across the active row from the active cell</li>
+        <li><b>undo</b>, <b>redo</b>, <b>new sheet</b>, <b>clear sheet</b></li>
+        <li><b>save sheet "Week 1"</b>, <b>load sheet "Week 1"</b></li>
+      </ul>
+    </details>
+  </footer>
+
+  <script type="module">
+    import { createGrid, getActive, setActive, getData, setCell, setRowValues, setColumnValues, clearGrid, newGrid, onInputEdit } from './src/grid.js';
+    import { startListening, stopListening, setHeardCallback, parseAndExecute } from './src/speech.js';
+    import { exportToExcel, exportToCsv } from './src/export.js';
+    import { saveSheet, loadSheet } from './src/storage.js';
+
+    // PWA SW
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('./service-worker.js'); }
+
+    const gridEl = document.getElementById('gridContainer');
+    createGrid(gridEl, 100, 26); // 100 rows, 26 cols (A-Z)
+
+    // UI hooks
+    const micBtn = document.getElementById('micBtn');
+    const micStatus = document.getElementById('micStatus');
+    const heardText = document.getElementById('heardText');
+    const activeCellEl = document.getElementById('activeCell');
+
+    document.getElementById('undoBtn').addEventListener('click', () => onInputEdit('undo'));
+    document.getElementById('redoBtn').addEventListener('click', () => onInputEdit('redo'));
+
+    document.getElementById('exportXlsxBtn').addEventListener('click', () => exportToExcel(getData()));
+    document.getElementById('exportCsvBtn').addEventListener('click', () => exportToCsv(getData()));
+
+    const sheetNameInput = document.getElementById('sheetName');
+    document.getElementById('saveSheetBtn').addEventListener('click', () => saveSheet(sheetNameInput.value, getData()));
+    document.getElementById('loadSheetBtn').addEventListener('click', async () => {
+      const name = sheetNameInput.value;
+      const data = await loadSheet(name);
+      if (data) {
+        newGrid(gridEl, data.length, data[0]?.length || 26);
+        setTimeout(()=>window.__importData(data), 0);
+      } else {
+        alert('No saved sheet with that name.');
+      }
+    });
+    document.getElementById('newSheetBtn').addEventListener('click', () => newGrid(gridEl, 100, 26));
+    document.getElementById('clearSheetBtn').addEventListener('click', () => clearGrid());
+
+    // Active cell updates
+    window.__onActiveChange = () => { activeCellEl.textContent = getActive(); };
+
+    // Speech hooks
+    setHeardCallback((t)=>{ heardText.textContent = t || '–'; });
+    micBtn.addEventListener('click', async () => {
+      if (micStatus.textContent === 'off') {
+        const ok = await startListening((phrase) => parseAndExecute(phrase));
+        if (ok) { micStatus.textContent = 'on'; micBtn.textContent = 'Mic ⏸'; }
+      } else {
+        stopListening();
+        micStatus.textContent = 'off'; micBtn.textContent = 'Mic ▶';
+      }
+    });
+
+    // Expose small API for import (loadSheet)
+    window.__importData = (matrix) => {
+      matrix.forEach((row, rIdx)=> {
+        row.forEach((val, cIdx)=> setCell(rIdx+1, cIdx+1, val));
+      });
+    };
+  </script>
+</body>
+</html>
