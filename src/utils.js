@@ -1,5 +1,4 @@
 export function colToLabel(n) {
-  // 1 -> A, 26 -> Z, 27 -> AA, etc.
   let s = '';
   while (n > 0) {
     const m = (n - 1) % 26;
