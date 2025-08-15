@@ -124,6 +124,14 @@
   <!-- SheetJS for Excel import/export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- App logic (uses table-based grid.js) -->
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+    // also bust cache for modules
+    const s = document.querySelector('script[type="module"][src="src/main.js"]');
+    if (s) s.src = s.src + '?v=' + Date.now();
+  }
+</script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
