@@ -21,6 +21,43 @@
     #context-menu .ctx-item:hover{ background:#f5f7ff; }
     #context-menu .ctx-item.danger{ color:#b00020; }
     #context-menu .ctx-sep{ margin:0; border:0; border-top:1px solid #eee; }
+
+    /* Dropdown menu styles */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropbtn {
+      background-color: #4CAF50;
+      color: white;
+      padding: 6px 10px;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: white;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    .dropdown-content a {
+      color: black;
+      padding: 8px 12px;
+      text-decoration: none;
+      display: block;
+    }
+    .dropdown-content a:hover {
+      background-color: #f1f1f1;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    .dropdown:hover .dropbtn {
+      background-color: #45a049;
+    }
   </style>
 </head>
 <body>
@@ -51,8 +88,23 @@
       <button id="btn-autofit" title="Auto-fit current column">Auto-fit</button>
 
       <!-- File -->
-      <button id="btn-export" title="Export selection to TSV">Export TSV</button>
-      <button id="btn-import" title="Import TSV into selection">Import TSV</button>
+      <div class="dropdown">
+        <button class="dropbtn">Export ▼</button>
+        <div class="dropdown-content">
+          <a href="#" id="export-xlsx">Excel (.xlsx)</a>
+          <a href="#" id="export-csv">CSV (.csv)</a>
+          <a href="#" id="export-tsv">TSV (.tsv)</a>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropbtn">Import ▼</button>
+        <div class="dropdown-content">
+          <a href="#" id="import-xlsx">Excel (.xlsx)</a>
+          <a href="#" id="import-csv">CSV (.csv)</a>
+          <a href="#" id="import-tsv">TSV (.tsv)</a>
+        </div>
+      </div>
 
       <!-- Grid lifecycle -->
       <button id="btn-new-grid" title="Create a new blank grid">New Grid</button>
@@ -77,6 +129,8 @@
     <button id="ctx-delete" class="ctx-item danger">Delete</button>
   </div>
 
+  <!-- SheetJS for Excel import/export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
