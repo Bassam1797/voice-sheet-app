@@ -6,7 +6,6 @@
   <title>Voice Sheet App</title>
   <link rel="stylesheet" href="assets/style.css"/>
 
-  <!-- Context-menu shim so styles apply to #context-menu as well -->
   <style>
     /* Context menu */
     #context-menu{
@@ -22,19 +21,14 @@
     #context-menu .ctx-item.danger{ color:#b00020; }
     #context-menu .ctx-sep{ margin:0; border:0; border-top:1px solid #eee; }
 
-    /* Export/Import dropdowns */
+    /* Dropdowns */
     .dropdown{ position:relative; display:inline-block; }
-    .dropbtn{
-      background:#4CAF50; color:#fff; padding:6px 10px; font-size:14px;
-      border:none; cursor:pointer; border-radius:8px;
-    }
+    .dropbtn{ background:#4CAF50; color:#fff; padding:6px 10px; font-size:14px; border:none; cursor:pointer; border-radius:8px; }
     .dropdown-content{
       display:none; position:absolute; background:#fff; min-width:180px;
       box-shadow:0 8px 16px rgba(0,0,0,.2); z-index:1000; border-radius:8px; overflow:hidden;
     }
-    .dropdown-content a{
-      display:block; padding:8px 12px; text-decoration:none; color:#111;
-    }
+    .dropdown-content a{ display:block; padding:8px 12px; text-decoration:none; color:#111; }
     .dropdown-content a:hover{ background:#f1f1f1; }
     .dropdown:hover .dropdown-content{ display:block; }
     .dropdown:hover .dropbtn{ background:#3da845; }
@@ -43,10 +37,9 @@
 <body>
   <header>
     <h1>Voice Sheet App</h1>
-
     <div class="toolbar">
       <!-- Mic + navigation -->
-      <button id="micBtn" title="Start/stop microphone">Mic ▶</button>
+      <button id="micBtn" title="Start/stop microphone">🎤 Start Mic</button>
       <label>Direction:
         <select id="direction">
           <option value="right" selected>Right →</option>
@@ -56,7 +49,11 @@
         </select>
       </label>
       <label><input type="checkbox" id="autoAdvance" checked> Auto-advance</label>
-      <label>Silence (ms): <input id="silenceMs" type="number" value="1000" min="200" step="100" style="width:6ch"></label>
+      <label>Silence (ms): <input id="silenceMs" type="number" value="1000" min="200" step="100" style="width:7ch"></label>
+
+      <!-- Undo/Redo -->
+      <button id="btn-undo" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+      <button id="btn-redo" title="Redo (Ctrl/Cmd+Y)">Redo</button>
 
       <!-- Row ops -->
       <button id="btn-insert-row-above">+ Row ↑</button>
@@ -99,15 +96,13 @@
       </div>
 
       <!-- Grid lifecycle -->
-      <button id="btn-new-grid" title="Create a new blank grid">New Grid</button>
-      <button id="btn-clear-grid" title="Clear all cells">Clear</button>
+      <button id="btn-new-grid">New Grid</button>
+      <button id="btn-clear-grid">Clear</button>
     </div>
   </header>
 
-  <!-- Grid host (table grid is rendered here by grid.js) -->
   <main id="grid-container"></main>
 
-  <!-- Status bar -->
   <section class="status">
     <div>Active cell: <span id="status-cell">A1</span></div>
   </section>
@@ -121,23 +116,17 @@
     <button id="ctx-delete" class="ctx-item danger">Delete</button>
   </div>
 
-  <!-- Remove the first jsDelivr one -->
-<!-- SheetJS for Excel import/export -->
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
-
-<!-- Clear service worker and bust cache for main.js -->
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-  // bust cache for modules
-  const s = document.querySelector('script[type="module"][src="src/main.js"]');
-  if (s) s.src = s.src + '?v=' + Date.now();
-}
-</script>
-
-<!-- Your main JavaScript logic -->
-<script type="module" src="src/main.js"></script>
+  <!-- SheetJS for Excel/CSV/TSV -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- Bootstrap (minimal) -->
+  <script type="module">
+    import * as grid from './src/grid.js';
+    const host = document.getElementById('grid-container');
+    grid.createGrid(host, 100, 26);
+    window.__onActiveChange = () => {
+      const s = document.getElementById('status-cell');
+      if (s) s.textContent = grid.getActive?.() || 'A1';
+    };
+  </script>
 </body>
 </html>
-
-
