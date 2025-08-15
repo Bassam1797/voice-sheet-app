@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Voice Sheet App — Single File</title>
+<link rel="icon" href="favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4CAF50">
+
+<style>
+  :root{
+    --border:#e3e6ea; --sel:#4c8bf5; --sel-bg:#eaf1ff; --hdr:#f5f6f8; --text:#111;
+    --ribbon-bg:#f3f4f7; --group-bg:#ffffff; --green:#4CAF50; --green-d:#3da845; --danger:#e53935;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:var(--text); background:#fff; }
+  header{ border-bottom:1px solid var(--border); background:var(--ribbon-bg); position:sticky; top:0; z-index:5; }
+  h1{ margin:0; padding:10px 16px; font-size:18px; }
+
+  /* Ribbon */
+  .ribbon{ display:flex; flex-wrap:wrap; gap:10px; padding:8px 10px 18px; }
+  .group{
+    background:var(--group-bg); border:1px solid var(--border); border-radius:10px;
+    padding:8px; display:flex; gap:8px; align-items:center; position:relative;
+  }
+  .group-title{
+    position:absolute; bottom:-14px; left:10px; font-size:11px; color:#666; background:transparent;
+  }
+  .group button, .group select, .group input[type="number"]{
+    border:1px solid var(--border); background:#fff; border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit;
+  }
+  .group button:hover{ background:#f7f9ff; }
+  .btn-green{ background:var(--green); color:#fff; border-color:var(--green-d); }
+  .btn-green:hover{ background:var(--green-d); }
+  .btn-red{ background:var(--danger); color:#fff; border-color:#c62828; }
+
+  /* Dropdown */
+  .dropdown{ position:relative; }
+  .dropbtn{ background:#fff; }
+  .dropdown-content{
+    display:none; position:absolute; top:100%; left:0; background:#fff; min-width:200px;
+    border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 24px rgba(0,0,0,.1); overflow:hidden; z-index:20;
+  }
+  .dropdown-content a{ display:block; padding:10px 12px; text-decoration:none; color:inherit; }
+  .dropdown-content a:hover{ background:#f5f7ff; }
+  .dropdown:hover .dropdown-content{ display:block; }
+
+  main{ padding:12px 16px; overflow:auto; }
+  table.grid{ border-collapse:separate; border-spacing:0; width:max-content; background:#fff; border:1px solid var(--border); }
+  .grid thead th{ position:sticky; top:0; background:var(--hdr); z-index:2; border-bottom:1px solid var(--border); }
+  .grid th, .grid td{ border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .grid th:first-child{ position:sticky; left:0; z-index:1; background:var(--hdr); }
+  .grid th{ padding:6px 8px; font-weight:600; text-align:center; user-select:none; }
+  .row-hdr{ width:40px; text-align:right; color:#555; }
+  .grid td{ position:relative; min-width:20px; }
+  .grid td input{
+    width:100%; height:100%; padding:6px 8px; border:0; outline:none; font:inherit;
+    background:transparent; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cell.active::after{
+    content:""; position:absolute; right:2px; bottom:2px; width:6px; height:6px; background:#2b6ef6; border-radius:50%;
+  }
+  .sel-rect{ background:var(--sel-bg); outline:1.5px solid var(--sel); outline-offset:-1.5px; }
+  .fill-handle{ position:absolute; right:-2px; bottom:-2px; width:8px; height:8px; background:#2b6ef6; border-radius:2px; cursor:crosshair; }
+  .col-resizer{ position:absolute; right:0; top:0; bottom:0; width:6px; cursor:col-resize; }
+
+  .status{ padding:0 16px 14px; color:#333; }
+
+  /* Context menu */
+  #context-menu{
+    display:none; position:fixed; z-index:10000; background:#fff; border:1px solid var(--border);
+    border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.12); min-width:180px; overflow:hidden;
+  }
+  #context-menu .ctx-item{ display:block; width:100%; text-align:left; padding:10px 12px; background:#fff; border:0; cursor:pointer; font-size:14px; }
+  #context-menu .ctx-item:hover{ background:#f5f7ff; }
+  #context-menu .ctx-item.danger{ color:#b00020; }
+  #context-menu .ctx-sep{ margin:0; border:0; border-top:1px solid #eee; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Voice Sheet App</h1>
+
+  <!-- Ribbon with labeled groups -->
+  <div class="ribbon">
+
+    <!-- Voice group (far left) -->
+    <div class="group" id="grp-voice">
+      <button id="micBtn" class="btn-green" title="Start/stop microphone" aria-pressed="false">🎤 Start Mic</button>
+      <label>Silence (ms):
+        <input id="silenceMs" type="number" value="1000" min="200" step="100" style="width:7ch">
+      </label>
+      <span class="group-title">Voice</span>
+    </div>
+
+    <!-- Navigation group -->
+    <div class="group" id="grp-nav">
+      <label>Direction:
+        <select id="direction">
+          <option value="right" selected>Right →</option>
+          <option value="left">← Left</option>
+          <option value="down">Down ↓</option>
+          <option value="up">↑ Up</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="autoAdvance" checked> Auto-advance</label>
+      <span class="group-title">Navigation</span>
+    </div>
+
+    <!-- Edit group -->
+    <div class="group" id="grp-edit">
+      <button id="btn-undo" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+      <button id="btn-redo" title="Redo (Ctrl/Cmd+Y)">Redo</button>
+      <span class="group-title">Edit</span>
+    </div>
+
+    <!-- Rows/Cols group -->
+    <div class="group" id="grp-rowscols">
+      <button id="btn-insert-row-above">+ Row ↑</button>
+      <button id="btn-insert-row-below">+ Row ↓</button>
+      <button id="btn-delete-row">Delete Row</button>
+      <button id="btn-move-row-up">Move Row ↑</button>
+      <button id="btn-move-row-down">Move Row ↓</button>
+      <button id="btn-insert-col-left">+ Col ←</button>
+      <button id="btn-insert-col-right">+ Col →</button>
+      <button id="btn-delete-col">Delete Col</button>
+      <button id="btn-move-col-left">Move Col ←</button>
+      <button id="btn-move-col-right">Move Col →</button>
+      <span class="group-title">Rows / Columns</span>
+    </div>
+
+    <!-- Merge group -->
+    <div class="group" id="grp-merge">
+      <button id="btn-merge">Merge</button>
+      <button id="btn-unmerge">Unmerge</button>
+      <span class="group-title">Merge</span>
+    </div>
+
+    <!-- Column Width group -->
+    <div class="group" id="grp-width">
+      <button id="btn-autofit" title="Auto-fit current column">Auto-fit</button>
+      <span class="group-title">Column Width</span>
+    </div>
+
+    <!-- File group -->
+    <div class="group" id="grp-file">
+      <div class="dropdown">
+        <button class="dropbtn">Export ▼</button>
+        <div class="dropdown-content">
+          <a href="#" id="export-xlsx">Excel (.xlsx)</a>
+          <a href="#" id="export-csv">CSV (.csv)</a>
+          <a href="#" id="export-tsv">TSV (.tsv)</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        <button class="dropbtn">Import ▼</button>
+        <div class="dropdown-content">
+          <a href="#" id="import-xlsx">Excel (.xlsx)</a>
+          <a href="#" id="import-csv">CSV (.csv)</a>
+          <a href="#" id="import-tsv">TSV (.tsv)</a>
+        </div>
+      </div>
+      <span class="group-title">File</span>
+    </div>
+
+    <!-- Grid lifecycle group -->
+    <div class="group" id="grp-grid">
+      <button id="btn-new-grid">New Grid</button>
+      <button id="btn-clear-grid">Clear</button>
+      <span class="group-title">Grid</span>
+    </div>
+
+  </div>
+</header>
+
+<main>
+  <div id="grid-container"></div>
+</main>
+
+<section class="status">
+  <div>Active cell: <span id="status-cell">A1</span></div>
+</section>
+
+<!-- Right-click context menu -->
+<div id="context-menu">
+  <button id="ctx-copy"   class="ctx-item">Copy</button>
+  <button id="ctx-cut"    class="ctx-item">Cut</button>
+  <button id="ctx-paste"  class="ctx-item">Paste</button>
+  <hr class="ctx-sep">
+  <button id="ctx-delete" class="ctx-item danger">Delete</button>
+</div>
+
+<!-- SheetJS for Excel/CSV/TSV -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+<script type="module">
+/* ================== Utilities ================== */
+const MIN_COL_WIDTH = 20;
+function colLabel(n){ let s=''; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26);} return s; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+function normSel(a){ return { r1:Math.min(a.r1,a.r2), c1:Math.min(a.c1,a.c2), r2:Math.max(a.r1,a.r2), c2:Math.max(a.c1,a.c2) }; }
+function parseMaybeNumber(s){ const t=(s??'').toString().trim().replace(',', '.'); const n=Number(t); return Number.isFinite(n)? n : null; }
+function parseMaybeDate(s){ const t=(s??'').toString().trim(); const d=new Date(t); return Number.isNaN(+d)? null : d; }
+function isoDate(d){ return d.toISOString().slice(0,10); }
+
+/* ================== State ================== */
+let ROWS=100, COLS=26;
+let container=null;
+let cells=[];                 // [{value, style}]
+let active={r:1,c:1};        // 1-based
+let sel={r1:1,c1:1,r2:1,c2:1};
+let undoStack=[], redoStack=[];
+let colWidths = JSON.parse(localStorage.getItem('colWidths') || '[]'); // 1..COLS
+let merges = [];
+let micWired=false;
+
+/* ================== DOM Helpers ================== */
+function cellTd(r,c){ return container?.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`) || null; }
+function cellInput(r,c){ return cellTd(r,c)?.querySelector('input') || null; }
+
+/* ================== Rendering ================== */
+function applyStyleToInput(inp, st){
+  inp.style.fontWeight = st?.bold ? '700':'';
+  inp.style.fontSize = st?.size || '';
+  inp.style.color = st?.color || '';
+  inp.style.backgroundColor = st?.bg || '';
+  inp.style.whiteSpace = st?.wrap ? 'normal' : 'nowrap';
+  inp.style.textAlign = st?.align || 'left';
+}
+function mergeCoverAt(r,c){ return merges.find(m=>r>=m.r1&&r<=m.r2&&c>=m.c1&&c<=m.c2) || null; }
+
+function render(){
+  if(!container) return;
+  const table=document.createElement('table'); table.className='grid';
+
+  // THEAD
+  const thead=document.createElement('thead');
+  const trh=document.createElement('tr');
+  const corner=document.createElement('th'); trh.appendChild(corner);
+  for(let c=1;c<=COLS;c++){
+    const th=document.createElement('th');
+    th.textContent=colLabel(c);
+    th.dataset.c=c;
+    if (colWidths[c]) th.style.width = colWidths[c] + 'px';
+    const rez=document.createElement('div'); rez.className='col-resizer';
+    rez.addEventListener('mousedown', e=>startColResize(e,c,th));
+    th.appendChild(rez);
+    trh.appendChild(th);
+  }
+  thead.appendChild(trh); table.appendChild(thead);
+
+  // TBODY
+  const tbody=document.createElement('tbody');
+  for(let r=1;r<=ROWS;r++){
+    const tr=document.createElement('tr');
+    const rh=document.createElement('th'); rh.className='row-hdr'; rh.textContent=r; tr.appendChild(rh);
+    for(let c=1;c<=COLS;c++){
+      const td=document.createElement('td'); td.className='cell'; td.dataset.r=r; td.dataset.c=c;
+
+      const m=mergeCoverAt(r,c);
+      if(m && !(m.r1===r && m.c1===c)){ td.hidden=true; tr.appendChild(td); continue; }
+      if(m && m.r1===r && m.c1===c){ td.rowSpan=(m.r2-m.r1+1); td.colSpan=(m.c2-m.c1+1); }
+
+      const input=document.createElement('input');
+      input.value=cells[r-1][c-1].value ?? '';
+      applyStyleToInput(input, cells[r-1][c-1].style);
+      input.addEventListener('focus', ()=> setActive(r,c,true));
+      input.addEventListener('input', (e)=>{
+        const prev=cells[r-1][c-1].value ?? '';
+        const next=e.target.value;
+        if(prev===next) return;
+        cells[r-1][c-1].value=next;
+        pushUndo({type:'set', r,c, prev, next});
+        redoStack=[];
+      });
+      input.addEventListener('mousedown', e=>startSelection(e,r,c));
+      td.appendChild(input);
+
+      const fh=document.createElement('div'); fh.className='fill-handle';
+      fh.addEventListener('mousedown', e=>startFillDrag(e,r,c));
+      td.appendChild(fh);
+
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+
+  container.innerHTML=''; container.appendChild(table);
+}
+
+function rebuild(){
+  const p={...active};
+  render();
+  setActive(p.r,p.c);
+  drawSelection();
+}
+
+/* ================== Selection ================== */
+function startSelection(e, r, c){
+  sel={ r1:r, c1:c, r2:r, c2:c };
+  drawSelection();
+
+  const move=(ev)=>{
+    const td=ev.target.closest?.('.cell'); if(!td) return;
+    sel.r2=+td.dataset.r; sel.c2=+td.dataset.c;
+    drawSelection();
+  };
+  const up=()=>{
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+function drawSelection(){
+  if(!container) return;
+  container.querySelectorAll('.sel-rect').forEach(el=>el.classList.remove('sel-rect'));
+  const R=normSel(sel);
+  for(let r=R.r1;r<=R.r2;r++) for(let c=R.c1;c<=R.c2;c++) cellTd(r,c)?.classList.add('sel-rect');
+}
+
+/* ================== Fill & Series ================== */
+function startFillDrag(e, r, c){
+  e.stopPropagation(); e.preventDefault();
+  const sr=normSel(sel);
+  const isRowSeed=(sr.r1===sr.r2 && sr.c1!==sr.c2);
+  const isColSeed=(sr.c1===sr.c2 && sr.r1!==sr.r2);
+  const seeds=collectSeeds(sr,isRowSeed,isColSeed,r,c);
+  let lastSig='';
+
+  const move=(ev)=>{
+    const td=ev.target.closest?.('.cell'); if(!td) return;
+    const rr=+td.dataset.r, cc=+td.dataset.c;
+    const dRow=Math.abs(rr-r), dCol=Math.abs(cc-c);
+    const horizontal=dCol>dRow;
+    const target=computeFillTarget(sr,horizontal,rr,cc);
+    const sig=`${target.r1},${target.c1},${target.r2},${target.c2},${horizontal}`;
+    if(sig===lastSig) return; lastSig=sig;
+    applyFill(target,seeds,horizontal);
+    sel=target; drawSelection();
+  };
+  const up=()=>{ window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+function collectSeeds(rect,isRowSeed,isColSeed,fr,fc){
+  if(isRowSeed){ const vals=[]; for(let c=rect.c1;c<=rect.c2;c++) vals.push(cells[rect.r1-1][c-1].value??''); return {type:'row', values:vals}; }
+  if(isColSeed){ const vals=[]; for(let r=rect.r1;r<=rect.r2;r++) vals.push(cells[r-1][rect.c1-1].value??''); return {type:'col', values:vals}; }
+  return { type:'single', values:[cells[fr-1][fc-1].value??''] };
+}
+function computeFillTarget(seedRect,horizontal,rr,cc){
+  const sr=normSel(seedRect);
+  if(horizontal){
+    const right=cc>=sr.c2; const c1=right? sr.c2+1:cc; const c2=right? cc:sr.c1-1;
+    return { r1:sr.r1, c1:Math.min(c1,c2), r2:sr.r2, c2:Math.max(c1,c2) };
+  } else {
+    const down=rr>=sr.r2; const r1=down? sr.r2+1:rr; const r2=down? rr:sr.r1-1;
+    return { r1:Math.min(r1,r2), c1:sr.c1, r2:Math.max(r1,r2), c2:sr.c2 };
+  }
+}
+function detectSeries(vals){
+  const nums=vals.map(parseMaybeNumber); const numsOK=nums.every(v=>Number.isFinite(v));
+  if(numsOK && nums.length>=2){ const step=nums.at(-1)-nums.at(-2); return { kind:'number', step:Number.isFinite(step)?step:0 }; }
+  const dates=vals.map(parseMaybeDate); const datesOK=dates.every(v=>v instanceof Date);
+  if(datesOK && vals.length>=2){ const stepMs=(+dates.at(-1))-(+dates.at(-2)); const stepDays=Math.round(stepMs/86400000)||1; return { kind:'date', stepDays }; }
+  return null;
+}
+function buildSeries(seedVals, series, count){
+  if(!series){ const last=seedVals.at(-1)??''; return Array.from({length:count},()=>String(last)); }
+  if(series.kind==='number'){ const start=parseMaybeNumber(seedVals.at(-1))??0; return Array.from({length:count},(_,i)=>String(start+series.step*(i+1))); }
+  if(series.kind==='date'){ const start=parseMaybeDate(seedVals.at(-1))??new Date(); return Array.from({length:count},(_,i)=>{ const d=new Date(+start+(series.stepDays*(i+1)*86400000)); return isoDate(d); }); }
+  const last=seedVals.at(-1)??''; return Array.from({length:count},()=>String(last));
+}
+function applyFill(target,seeds,horizontal){
+  if(target.r2<target.r1 || target.c2<target.c1) return;
+  const series=(seeds.values.length>=2)?detectSeries(seeds.values):null;
+  if(horizontal){
+    for(let r=target.r1;r<=target.r2;r++){
+      const base=seeds.values.length?seeds.values:['']; const count=target.c2-target.c1+1; const out=buildSeries(base,series,count);
+      for(let i=0;i<count;i++) setCell(r, target.c1+i, out[i]);
+    }
+  } else {
+    for(let c=target.c1;c<=target.c2;c++){
+      const base=seeds.values.length?seeds.values:['']; const count=target.r2-target.r1+1; const out=buildSeries(base,series,count);
+      for(let i=0;i<count;i++) setCell(target.r1+i, c, out[i]);
+    }
+  }
+}
+
+/* ================== Column Resize ================== */
+function startColResize(e, col, th){
+  e.preventDefault(); e.stopPropagation();
+  const startX=e.clientX, startW=th.offsetWidth;
+  const move=(ev)=>{ const w=Math.max(MIN_COL_WIDTH, startW+(ev.clientX-startX)); th.style.width=w+'px'; };
+  const up=(ev)=>{ const w=Math.max(MIN_COL_WIDTH, startW+(ev.clientX-startX)); colWidths[col]=w; localStorage.setItem('colWidths', JSON.stringify(colWidths)); window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+}
+
+/* ================== Clipboard & Context ================== */
+async function copySelectionTSV(){
+  const R=normSel(sel), lines=[];
+  for(let r=R.r1;r<=R.r2;r++){ const row=[]; for(let c=R.c1;c<=R.c2;c++) row.push(cells[r-1][c-1].value??''); lines.push(row.join('\t')); }
+  const tsv=lines.join('\n');
+  try{ await navigator.clipboard.writeText(tsv); }
+  catch{
+    const ta=document.createElement('textarea'); ta.value=tsv; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  }
+}
+function pasteTSVAtTopLeft(tsv){
+  const R=normSel(sel);
+  const matrix=tsv.replace(/\r/g,'').split('\n').map(line=>line.split('\t'));
+  for(let i=0;i<matrix.length;i++) for(let j=0;j<matrix[i].length;j++){
+    const r=R.r1+i, c=R.c1+j; if(r<=ROWS && c<=COLS) setCell(r,c,matrix[i][j]);
+  }
+  drawSelection();
+}
+
+/* ================== Undo/Redo ================== */
+function pushUndo(entry){ undoStack.push(entry); }
+function undo(){
+  const last=undoStack.pop(); if(!last) return;
+  if(last.type==='set'){
+    const cur=cells[last.r-1][last.c-1].value??'';
+    cells[last.r-1][last.c-1].value=last.prev??'';
+    const inp=cellInput(last.r,last.c); if(inp) inp.value=last.prev??'';
+    redoStack.push({ ...last, prev:cur, next:last.prev??'' });
+  }
+  drawSelection();
+}
+function redo(){
+  const last=redoStack.pop(); if(!last) return;
+  if(last.type==='set'){
+    const cur=cells[last.r-1][last.c-1].value??'';
+    cells[last.r-1][last.c-1].value=last.next??'';
+    const inp=cellInput(last.r,last.c); if(inp) inp.value=last.next??'';
+    undoStack.push({ ...last, prev:cur });
+  }
+  drawSelection();
+}
+
+/* ================== Shortcuts (incl. keyboard nav) ================== */
+function attachGlobalShortcuts(){
+  document.addEventListener('keydown', async (e)=>{
+    const meta=e.ctrlKey||e.metaKey;
+    if(meta && e.key.toLowerCase()==='z'){ e.preventDefault(); undo(); }
+    if(meta && (e.key.toLowerCase()==='y' || (e.shiftKey && e.key.toLowerCase()==='z'))){ e.preventDefault(); redo(); }
+    if(meta && e.key.toLowerCase()==='c'){ e.preventDefault(); await copySelectionTSV(); }
+    if(meta && e.key.toLowerCase()==='x'){ e.preventDefault(); await copySelectionTSV(); deleteSelection(); }
+    if(meta && e.key.toLowerCase()==='v'){ e.preventDefault(); let t=''; try{ t=await navigator.clipboard.readText(); }catch{} if(t){ pasteTSVAtTopLeft(t);} }
+
+    if((e.key==='Delete' || e.key==='Backspace') && !meta){
+      const inCell=document.activeElement?.closest?.('.cell'); if(!inCell){ e.preventDefault(); deleteSelection(); }
+    }
+
+    // Tab/Enter move when editing a cell
+    if(e.key==='Tab' || e.key==='Enter'){
+      const inInput=document.activeElement?.tagName==='INPUT' && document.activeElement.closest('.cell');
+      if(inInput){
+        e.preventDefault();
+        const dir=(e.key==='Tab') ? (e.shiftKey?'left':'right') : (e.shiftKey?'up':'down');
+        moveActive(dir,1,{wrapRows:false});
+      }
+    }
+
+    // Arrow nav outside inputs
+    const inCell=document.activeElement?.closest?.('.cell');
+    if(!inCell){
+      if(e.key==='ArrowRight'){ e.preventDefault(); setActive(active.r, clamp(active.c+1,1,COLS)); }
+      if(e.key==='ArrowLeft'){  e.preventDefault(); setActive(active.r, clamp(active.c-1,1,COLS)); }
+      if(e.key==='ArrowDown'){  e.preventDefault(); setActive(clamp(active.r+1,1,ROWS), active.c); }
+      if(e.key==='ArrowUp'){    e.preventDefault(); setActive(clamp(active.r-1,1,ROWS), active.c); }
+    }
+  });
+}
+
+/* ================== Public-ish API ================== */
+function createGrid(hostEl, rows=100, cols=26){
+  container=hostEl; ROWS=rows; COLS=cols;
+  cells=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>({value:'',style:{}})));
+  merges=[]; undoStack=[]; redoStack=[];
+  render(); attachGlobalShortcuts(); setActive(1,1); drawSelection();
+  wireToolbar(); wireContextMenu(); wireExportImport(); wireMicrophoneControls();
+}
+function clearGrid(){
+  for(let r=1;r<=ROWS;r++) for(let c=1;c<=COLS;c++){ cells[r-1][c-1].value=''; const inp=cellInput(r,c); if(inp) inp.value=''; }
+  undoStack=[]; redoStack=[]; merges=[]; drawSelection();
+}
+function getData(){ return cells.map(row=>row.map(o=>o.value??'')); }
+function setCell(r,c,val,opts={}){
+  if(r<1||c<1||r>ROWS||c>COLS) return;
+  const prev=cells[r-1][c-1].value??''; const next=val??'';
+  if(prev===next) return;
+  cells[r-1][c-1].value=next;
+  const inp=cellInput(r,c); if(inp && inp.value!==next) inp.value=next;
+  if(!opts.skipUndo){ pushUndo({type:'set', r,c, prev, next}); redoStack=[]; }
+}
+function getActive(){ return `${colLabel(active.c)}${active.r}`; }
+function setActive(r,c,viaFocus=false){
+  active.r=clamp(r,1,ROWS); active.c=clamp(c,1,COLS);
+  container.querySelectorAll('.cell.active').forEach(el=>el.classList.remove('active'));
+  const td=cellTd(active.r,active.c); td?.classList.add('active');
+  if(!viaFocus){ sel={ r1:active.r, c1:active.c, r2:active.r, c2:active.c }; }
+  const inp=td?.querySelector('input'); if(inp) inp.focus({preventScroll:true});
+  const s=document.getElementById('status-cell'); if(s) s.textContent=getActive();
+  drawSelection();
+}
+function moveActive(dir, steps=1, opts={wrapRows:true, blockWidth:26, blockHeight:100}){
+  dir=String(dir||'').toLowerCase(); let r=active.r, c=active.c;
+  const BW=clamp(opts.blockWidth||COLS,1,COLS), startBC=Math.floor((c-1)/BW)*BW+1, endBC=Math.min(startBC+BW-1,COLS);
+  const BH=clamp(opts.blockHeight||ROWS,1,ROWS), startBR=Math.floor((r-1)/BH)*BH+1, endBR=Math.min(startBR+BH-1,ROWS);
+  if(dir==='right'){ c+=steps; if(opts.wrapRows) while(c>endBC){ c=startBC+(c-endBC-1); r=Math.min(ROWS,r+1);} else c=Math.min(COLS,c); }
+  else if(dir==='left'){ c-=steps; if(opts.wrapRows) while(c<startBC){ c=endBC-(startBC-c-1); r=Math.max(1,r-1);} else c=Math.max(1,c); }
+  else if(dir==='down'){ r+=steps; if(opts.wrapRows) while(r>endBR){ r=startBR+(r-endBR-1); c=Math.min(COLS,c+1);} else r=Math.min(ROWS,r); }
+  else if(dir==='up'){ r-=steps; if(opts.wrapRows) while(r<startBR){ r=endBR-(startBR-r-1); c=Math.max(1,c-1);} else r=Math.max(1,r); }
+  setActive(r,c);
+}
+function deleteSelection(){
+  const R=normSel(sel);
+  for(let r=R.r1;r<=R.r2;r++) for(let c=R.c1;c<=R.c2;c++) setCell(r,c,'');
+}
+
+/* ================== Row/Col & Merge ================== */
+function insertRow(where='below'){
+  const r=active.r;
+  const row=Array.from({length:COLS},()=>({value:'',style:{}}));
+  const idx=(where==='above')?(r-1):r;
+  cells.splice(idx,0,row); ROWS=cells.length; rebuild(); setActive((where==='above'?r:r+1), active.c);
+}
+function insertCol(where='right'){
+  const c=active.c, idx=(where==='left')?(c-1):c;
+  for(let r=0;r<ROWS;r++) cells[r].splice(idx,0,{value:'',style:{}});
+  COLS=cells[0].length; rebuild(); setActive(active.r,(where==='left'?c:c+1));
+}
+function deleteRow(){
+  if(ROWS<=1) return;
+  const del=active.r;
+  cells.splice(del-1,1); ROWS=cells.length;
+  merges = merges.filter(m => !(del>=m.r1 && del<=m.r2));
+  rebuild(); setActive(Math.min(del,ROWS), active.c);
+}
+function deleteCol(){
+  if(COLS<=1) return;
+  const del=active.c;
+  for(let r=0;r<ROWS;r++) cells[r].splice(del-1,1);
+  COLS=cells[0].length;
+  merges = merges.filter(m => !(del>=m.c1 && del<=m.c2));
+  rebuild(); setActive(active.r, Math.min(del,COLS));
+}
+function moveRow(dir){
+  const r=active.r, to=(dir==='up')?Math.max(1,r-1):Math.min(ROWS,r+1); if(to===r) return;
+  const [row]=cells.splice(r-1,1); cells.splice(to-1,0,row); rebuild(); setActive(to,active.c);
+}
+function moveCol(dir){
+  const c=active.c, to=(dir==='left')?Math.max(1,c-1):Math.min(COLS,c+1); if(to===c) return;
+  for(let r=0;r<ROWS;r++){ const [val]=cells[r].splice(c-1,1); cells[r].splice(to-1,0,val); }
+  rebuild(); setActive(active.r,to);
+}
+function mergeSelection(){
+  const R=normSel(sel); let filled=0;
+  for(let r=R.r1;r<=R.r2;r++) for(let c=R.c1;c<=R.c2;c++) if(cells[r-1][c-1].value) filled++;
+  if(filled>1 && !confirm('Merging keeps only the top-left value. Continue?')) return;
+  for(let r=R.r1;r<=R.r2;r++) for(let c=R.c1;c<=R.c2;c++) if(!(r===R.r1&&c===R.c1)) setCell(r,c,'');
+  merges.push(R); rebuild(); setActive(R.r1,R.c1);
+}
+function unmergeSelection(){ const R=normSel(sel); merges=merges.filter(m=>!(m.r1===R.r1&&m.c1===R.c1&&m.r2===R.r2&&m.c2===R.c2)); rebuild(); }
+
+/* ================== Toolbar, Context, Import/Export, Mic ================== */
+function wireToolbar(){
+  const $=id=>document.getElementById(id);
+  $('btn-insert-row-above')?.addEventListener('click',()=>insertRow('above'));
+  $('btn-insert-row-below')?.addEventListener('click',()=>insertRow('below'));
+  $('btn-delete-row')?.addEventListener('click',()=>deleteRow());
+  $('btn-move-row-up')?.addEventListener('click',()=>moveRow('up'));
+  $('btn-move-row-down')?.addEventListener('click',()=>moveRow('down'));
+
+  $('btn-insert-col-left')?.addEventListener('click',()=>insertCol('left'));
+  $('btn-insert-col-right')?.addEventListener('click',()=>insertCol('right'));
+  $('btn-delete-col')?.addEventListener('click',()=>deleteCol());
+  $('btn-move-col-left')?.addEventListener('click',()=>moveCol('left'));
+  $('btn-move-col-right')?.addEventListener('click',()=>moveCol('right'));
+
+  $('btn-merge')?.addEventListener('click',()=>mergeSelection());
+  $('btn-unmerge')?.addEventListener('click',()=>unmergeSelection());
+  $('btn-autofit')?.addEventListener('click',()=>autoWidthFitSelected());
+
+  $('btn-new-grid')?.addEventListener('click',()=>createGrid(container, ROWS, COLS));
+  $('btn-clear-grid')?.addEventListener('click',()=>{ if(confirm('Clear ALL cells?')) clearGrid(); });
+
+  $('btn-undo')?.addEventListener('click',()=>undo());
+  $('btn-redo')?.addEventListener('click',()=>redo());
+}
+
+function wireContextMenu(){
+  const menu=document.getElementById('context-menu'); if(!menu) return;
+  document.addEventListener('contextmenu',(e)=>{
+    const cell=e.target.closest?.('.cell'); if(!cell) return;
+    e.preventDefault(); menu.style.display='block';
+    const pad=6; const W=menu.offsetWidth||180; const H=menu.offsetHeight||150;
+    const x=Math.min(e.clientX, innerWidth-W-pad);
+    const y=Math.min(e.clientY, innerHeight-H-pad);
+    menu.style.left=x+'px'; menu.style.top=y+'px';
+  });
+  document.addEventListener('click',(e)=>{ if(!menu.contains(e.target)) menu.style.display='none'; });
+  document.getElementById('ctx-copy')?.addEventListener('click', async()=>{ await copySelectionTSV(); menu.style.display='none'; });
+  document.getElementById('ctx-cut')?.addEventListener('click',  async()=>{ await copySelectionTSV(); deleteSelection(); menu.style.display='none'; });
+  document.getElementById('ctx-paste')?.addEventListener('click',async()=>{ try{ const t=await navigator.clipboard.readText(); if(t) pasteTSVAtTopLeft(t);}catch{} menu.style.display='none'; });
+  document.getElementById('ctx-delete')?.addEventListener('click',    ()=>{ deleteSelection(); menu.style.display='none'; });
+}
+
+function filename(base, ext){
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return `${base}_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}.${ext}`;
+}
+function matrixForExport(){
+  const all=getData(); const R=normSel(sel);
+  if(R.r1===R.r2 && R.c1===R.c2) return all; // no selection -> export all
+  const out=[]; for(let r=R.r1;r<=R.r2;r++) out.push(all[r-1].slice(R.c1-1, R.c2));
+  return out;
+}
+function wireExportImport(){
+  // Export
+  document.getElementById('export-xlsx')?.addEventListener('click',(e)=>{ e.preventDefault();
+    if(typeof XLSX==='undefined'){ alert('XLSX library missing'); return; }
+    const ws=XLSX.utils.aoa_to_sheet(matrixForExport()); const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1'); XLSX.writeFile(wb, filename('VoiceSheet','xlsx'));
+  });
+  document.getElementById('export-csv')?.addEventListener('click',(e)=>{ e.preventDefault();
+    if(typeof XLSX==='undefined'){ alert('XLSX library missing'); return; }
+    const ws=XLSX.utils.aoa_to_sheet(matrixForExport()); const csv=XLSX.utils.sheet_to_csv(ws);
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename('VoiceSheet','csv'); a.click();
+  });
+  document.getElementById('export-tsv')?.addEventListener('click',(e)=>{ e.preventDefault();
+    if(typeof XLSX==='undefined'){ alert('XLSX library missing'); return; }
+    const ws=XLSX.utils.aoa_to_sheet(matrixForExport()); const tsv=XLSX.utils.sheet_to_csv(ws,{FS:'\t'});
+    const blob=new Blob([tsv],{type:'text/tab-separated-values;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename('VoiceSheet','tsv'); a.click();
+  });
+
+  // Import at active cell
+  async function pickFile(accept){ return new Promise(res=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept=accept; inp.onchange=()=>res(inp.files && inp.files[0]); inp.click(); }); }
+  function activeRC(){ return {r:active.r, c:active.c}; }
+  function fillFromMatrixAt(matrix,r0,c0){ for(let i=0;i<matrix.length;i++) for(let j=0;j<matrix[i].length;j++) setCell(r0+i,c0+j,matrix[i][j]); }
+
+  document.getElementById('import-xlsx')?.addEventListener('click', async (e)=>{
+    e.preventDefault(); const f=await pickFile('.xlsx'); if(!f) return;
+    const buf=await f.arrayBuffer(); const wb=XLSX.read(buf,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+    const matrix=XLSX.utils.sheet_to_json(ws,{header:1});
+    const pos=activeRC(); fillFromMatrixAt(matrix,pos.r,pos.c);
+  });
+  document.getElementById('import-csv')?.addEventListener('click', async (e)=>{
+    e.preventDefault(); const f=await pickFile('.csv'); if(!f) return;
+    const text=await f.text(); const matrix=text.replace(/\r/g,'').split('\n').filter(Boolean).map(l=>l.split(','));
+    const pos=activeRC(); fillFromMatrixAt(matrix,pos.r,pos.c);
+  });
+  document.getElementById('import-tsv')?.addEventListener('click', async (e)=>{
+    e.preventDefault(); const f=await pickFile('.tsv,.txt'); if(!f) return;
+    const text=await f.text(); const matrix=text.replace(/\r/g,'').split('\n').filter(Boolean).map(l=>l.split('\t'));
+    const pos=activeRC(); fillFromMatrixAt(matrix,pos.r,pos.c);
+  });
+}
+
+/* ================== Microphone (V1-style continuous; numbers-only; undo-enabled) ================== */
+function wireMicrophoneControls(){
+  if(micWired) return; micWired=true;
+  const micBtn=document.getElementById('micBtn'), dirSel=document.getElementById('direction'), autoChk=document.getElementById('autoAdvance'), silenceInp=document.getElementById('silenceMs');
+  if(!micBtn) return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ micBtn.textContent='Mic (unsupported)'; micBtn.disabled=true; return; }
+
+  const recognition=new SR();
+  recognition.continuous=true;
+  recognition.interimResults=false;
+  recognition.lang='en-US';
+
+  let recognizing=false;
+
+  recognition.onresult=(ev)=>{
+    const raw=ev.results[ev.results.length-1][0].transcript.trim();
+    // numbers only (allow minus & dot)
+    const cleaned = raw.replace(/[^\d.\-]/g,'');
+    const num = parseMaybeNumber(cleaned);
+    if (num===null) return; // ignore non-numeric
+    setCell(active.r, active.c, String(num), { skipUndo:false }); // goes into undo
+  };
+
+  recognition.onend=()=>{
+    if(!recognizing) return;
+    const delay=Math.max(200, +(silenceInp?.value || 1000));
+    setTimeout(()=>{
+      if(!recognizing) return;
+      if(autoChk?.checked){
+        const dir=dirSel?.value || 'right';
+        moveActive(dir, 1, { wrapRows:true, blockWidth:26, blockHeight:100 });
+      }
+      recognition.start(); // keep listening
+    }, delay);
+  };
+
+  micBtn.onclick=()=>{
+    if(!recognizing){
+      recognizing=true; recognition.start();
+      micBtn.textContent='⏹ Stop Mic';
+      micBtn.classList.remove('btn-green'); micBtn.classList.add('btn-red');
+      micBtn.setAttribute('aria-pressed','true');
+    } else {
+      recognizing=false; recognition.stop();
+      micBtn.textContent='🎤 Start Mic';
+      micBtn.classList.remove('btn-red'); micBtn.classList.add('btn-green');
+      micBtn.setAttribute('aria-pressed','false');
+    }
+  };
+}
+
+/* ================== Auto-fit ================== */
+function autoWidthFitSelected(col){
+  const c=col||active.c, ctx=document.createElement('canvas').getContext('2d'), body=getComputedStyle(document.body);
+  ctx.font=`${body.fontSize} ${body.fontFamily}`;
+  let max=MIN_COL_WIDTH;
+  for(let r=1;r<=ROWS;r++){
+    const v=(cells[r-1][c-1]?.value||'')+'  ';
+    const w=ctx.measureText(v).width + 18;
+    max=Math.max(max, w);
+  }
+  const th=container.querySelector(`thead th[data-c="${c}"]`); if(th) th.style.width=max+'px';
+  colWidths[c]=max; localStorage.setItem('colWidths', JSON.stringify(colWidths));
+}
+
+/* ================== Boot ================== */
+createGrid(document.getElementById('grid-container'), 100, 26);
+</script>
+</body>
+</html>
