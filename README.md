@@ -1,52 +1,23 @@
-# Voice Sheet App v2
+# Voice Sheet App – V2
 
-A browser-based, speech-powered spreadsheet application.  
-Enter data into a grid by **speaking**, navigate hands-free, and export/import Excel or CSV files — all without any backend server.
+An Excel-like grid with voice entry, import/export, and power-user features.
 
-## ✨ Features
+## Features
+- Inline editing, multi-cell selection (click + drag).
+- Copy/Cut/Paste/Delete; clipboard uses TSV so it round-trips with Excel and Google Sheets.
+- Drag-fill horizontally/vertically, including simple numeric series.
+- Merge / Unmerge cells.
+- Insert/Delete rows & columns; auto-fit column width (double-click header).
+- Column resize with small minimum widths; widths persist in `localStorage`.
+- Undo / Redo.
+- Blue active-cell dot only on last active cell.
+- Import/Export: XLSX, CSV, TSV (SheetJS).
+- New Grid + Clear Grid buttons.
+- Voice recognition (Web Speech API) with: numeric-only acceptance, no undo spam, auto-advance (configurable dir), silence timeout control.
 
-### Voice Input
-- **Speech-to-cell** entry with [Web Speech API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Speech_API/Using_the_Web_Speech_API)  
-- Auto-advance after a configurable silence delay  
-- Direction control: Right / Left / Down / Up  
-- Number-only mode with word-to-digit conversion  
-- **SpeechGrammar** hints for improved number recognition
+## Run
+Open `index.html` in a modern Chromium-based browser for best results (Chrome/Edge).
 
-### Spreadsheet Grid
-- 100 rows × 26 columns (A–Z)
-- Keyboard navigation + manual editing
-- Undo / Redo
-- Active cell highlighting
-
-### Import & Export
-- **Export** full sheet to `.xlsx` or `.csv` with sheet name + timestamp in filename
-- **Import** `.xlsx` or `.csv` directly into the grid (first sheet only)
-
-### Formulas (Basic)
-- Supports `=A1`, `=SUM(A1:A5)`, `=SUM(A1,B3,C7)`
-- Supports `=AVG(...)`
-- Auto recalculates when referenced cells change
-
-### Auto-Wrap Logic
-- Wrap rows automatically after a set number of entries
-- Configurable block width
-
-### Visual Indicators
-- Active cell pulses while listening
-- Confirmation prompts for **Clear**, **New**, and **Load**
-
-### Snapshots & History
-- Save up to 10 local snapshots per sheet
-- Restore previous versions instantly
-- Snapshots are stored in browser localStorage (per device/browser)
-
----
-
-## 🚀 Getting Started
-
-### 1. Run locally
-Clone or download this repo, then open `index.html` in Chrome or Edge (desktop).
-
-```bash
-git clone <your-repo-url>
-cd voice-sheet-app
+## Notes
+- Browser clipboard permissions may be required for programmatic paste on some platforms.
+- Web Speech API is experimental and not available in all browsers.
