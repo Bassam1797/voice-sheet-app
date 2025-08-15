@@ -7,7 +7,6 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="stylesheet" href="assets/style.css">
   <link rel="manifest" href="manifest.json">
-  <!-- External libraries -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -69,7 +68,6 @@
     <div class="hint">Shortcuts: ⌘/Ctrl+C/X/V, Delete, ⌘/Ctrl+Z / ⌘/Ctrl+Shift+Z (or Y), Arrows, Tab/Shift+Tab, Enter/Shift+Enter</div>
   </footer>
 
-  <!-- App scripts -->
   <script type="module">
     import { createGrid } from './src/grid.js';
     import { setupSpeech } from './src/speech.js';
@@ -77,32 +75,22 @@
     import { storage } from './src/storage.js';
 
     const gridEl = document.getElementById('grid');
-    const grid = createGrid(gridEl, {
-      rows: 50,
-      cols: 26,
-    });
+    const grid = createGrid(gridEl, { rows: 50, cols: 26 });
 
-    // Persist column widths
     const savedWidths = storage.get('colWidths');
     if (savedWidths) grid.setColumnWidths(savedWidths);
     grid.on('colWidthChange', widths => storage.set('colWidths', widths));
 
-    // Header buttons
     document.getElementById('btn-new').addEventListener('click', () => {
       grid.reset(50, 26);
       storage.set('colWidths', grid.getColumnWidths());
     });
-    document.getElementById('btn-clear').addEventListener('click', () => {
-      grid.clear();
-    });
+    document.getElementById('btn-clear').addEventListener('click', () => { grid.clear(); });
 
-    // Import/Export
     setupExportImport(grid);
 
-    // Speech
     const speech = setupSpeech({
       onNumber: (numStr) => {
-        // Accept only numeric; no undo entry for voice inputs
         if (!/^[-+]?\d*(?:\.\d+)?$/.test(numStr) || numStr.trim()==='') return;
         grid.editCurrentCell(numStr, { pushUndo: false });
         if (document.getElementById('autoAdvance').checked) {
@@ -115,9 +103,7 @@
       getButton: () => document.getElementById('btn-mic'),
     });
 
-    // Keyboard navigation handled in grid.js
-
-    window.grid = grid; // expose for debugging
+    window.grid = grid;
     window.speech = speech;
   </script>
 </body>

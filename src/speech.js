@@ -15,19 +15,17 @@ export function setupSpeech({ onNumber, onStatus, getSilenceMs, getButton }){
     rec.onend = ()=>{ btn.textContent='Mic ▶'; onStatus('Ready'); rec=null; };
     rec.onerror = (e)=>{ onStatus('Mic error: '+e.error); };
     rec.onresult = (e)=>{
-      // find the last final result
       for (let i = e.resultIndex; i < e.results.length; i++){
         const res = e.results[i];
         const txt = res[0].transcript.trim();
         if (res.isFinal){
-          // accept only numeric
-          const cleaned = txt.replace(/[,\s]/g,''); // "1 000" -> "1000"
+          const cleaned = txt.replace(/[,\s]/g,''); 
           if (/^[-+]?\d*(?:\.\d+)?$/.test(cleaned) && cleaned !== ''){
             onNumber(cleaned);
           }
           resetSilence();
         } else {
-          resetSilence(); // keep timer alive while interim coming in
+          resetSilence();
         }
       }
     };
@@ -37,9 +35,7 @@ export function setupSpeech({ onNumber, onStatus, getSilenceMs, getButton }){
   function resetSilence(){
     clearTimeout(silenceTimer);
     silenceTimer = setTimeout(()=>{
-      // simulate auto-advance trigger by sending empty noop; grid handles advance
       onStatus('Auto-advance after silence.');
-      // do nothing else — advance is done by grid after valid number already entered
     }, getSilenceMs());
   }
   function stop(){

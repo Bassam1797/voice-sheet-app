@@ -6,7 +6,7 @@ export function createGrid(container, opts = {}){
   const state = {
     rows, cols,
     data: Array.from({length: rows}, ()=> Array(cols).fill('')),
-    merges: [], // {r1,c1,r2,c2}
+    merges: [],
     colWidths: Array(cols).fill(100),
     selection: { r1:0, c1:0, r2:0, c2:0 },
     active: { r:0, c:0 },
@@ -25,7 +25,6 @@ export function createGrid(container, opts = {}){
   table.appendChild(thead); table.appendChild(tbody);
   gridEl.appendChild(table);
 
-  // Corner + column headers
   const headRow = document.createElement('tr');
   const corner = document.createElement('th');
   corner.className = 'corner';
@@ -37,7 +36,6 @@ export function createGrid(container, opts = {}){
     th.dataset.c = c;
     th.style.width = state.colWidths[c]+'px';
     th.textContent = letters(c);
-    // resizer
     const resizer = document.createElement('div');
     resizer.className = 'col-resizer';
     let startX=0, startW=0;
@@ -45,7 +43,7 @@ export function createGrid(container, opts = {}){
       startX = e.clientX; startW = th.offsetWidth;
       const move = (ev)=>{
         const dx = ev.clientX - startX;
-        const w = Math.max(24, startW + dx); // allow smaller widths
+        const w = Math.max(24, startW + dx);
         th.style.width = w+'px';
         state.colWidths[c] = w;
         api.emit('colWidthChange', api.getColumnWidths());
@@ -61,10 +59,8 @@ export function createGrid(container, opts = {}){
   }
   thead.appendChild(headRow);
 
-  // Build body
   for (let r=0;r<state.rows;r++){
     const tr = document.createElement('tr');
-    // row header
     const th = document.createElement('th');
     th.className = 'th-row';
     th.textContent = (r+1);
@@ -85,7 +81,6 @@ export function createGrid(container, opts = {}){
     tbody.appendChild(tr);
   }
 
-  // Selection rectangle + fill handle
   const selRect = document.createElement('div');
   selRect.className = 'selection-rect';
   selRect.style.display = 'none';
@@ -94,7 +89,6 @@ export function createGrid(container, opts = {}){
   fillHandle.className = 'fill-handle';
   selRect.appendChild(fillHandle);
 
-  // Context menu
   const menu = buildContextMenu();
   document.body.appendChild(menu);
 
@@ -104,7 +98,7 @@ export function createGrid(container, opts = {}){
     menu.style.background='white'; menu.style.border='1px solid #e5e7eb'; menu.style.borderRadius='8px';
     menu.style.boxShadow='0 8px 24px rgba(0,0,0,.08)';
     const addBtn=(label,fn)=>{
-      const b=document.createElement('button'); b.textContent=label; b.style.display='block'; b.style.padding='8px 12px'; b.style.width='160px'; b.style.border='none'; b.style.background='white'; b.style.textAlign='left';
+      const b=document.createElement('button'); b.textContent=label; b.style.display='block'; b.style.padding='8px 12px'; b.style.width='180px'; b.style.border='none'; b.style.background='white'; b.style.textAlign='left';
       b.addEventListener('click', ()=>{ fn(); hide(); });
       b.addEventListener('mouseover', ()=> b.style.background='#f3f4f6');
       b.addEventListener('mouseout', ()=> b.style.background='white');
@@ -136,7 +130,7 @@ export function createGrid(container, opts = {}){
     menu.style.display = 'block';
   });
 
-  function getCell(r,c){ return tbody.children[r].children[c+1]; } // +1 for row header
+  function getCell(r,c){ return tbody.children[r].children[c+1]; }
 
   function handleInput(e){
     const td = e.currentTarget;
@@ -175,17 +169,14 @@ export function createGrid(container, opts = {}){
   }
   function setActive(r,c){
     state.active = { r, c };
-    // move active class
     gridEl.querySelectorAll('.cell.active').forEach(el=>el.classList.remove('active'));
     getCell(r,c).classList.add('active');
   }
 
   function updateSelectionVisuals(){
     const {r1,c1,r2,c2} = state.selection;
-    // highlight range
     gridEl.querySelectorAll('.cell.selected').forEach(el=>el.classList.remove('selected'));
     for(let r=r1;r<=r2;r++) for(let c=c1;c<=c2;c++) getCell(r,c).classList.add('selected');
-    // selection rect coords
     const a = getCell(r1,c1).getBoundingClientRect();
     const b = getCell(r2,c2).getBoundingClientRect();
     const g = gridEl.getBoundingClientRect();
@@ -194,28 +185,26 @@ export function createGrid(container, opts = {}){
     selRect.style.top = (a.top - g.top + gridEl.scrollTop) + 'px';
     selRect.style.width = (b.right - a.left) + 'px';
     selRect.style.height = (b.bottom - a.top) + 'px';
-    // ensure last active cell shows dot only on last active
     gridEl.querySelectorAll('.active-dot').forEach(dot => dot.style.display='none');
     getCell(state.active.r, state.active.c).querySelector('.active-dot').style.display='block';
   }
 
-  // Keyboard handling + navigation
   function handleKeyDown(e){
     const {r1,c1,r2,c2} = state.selection;
-    // Enter/Tab navigation: respect boundaries of selection when multi-selected
     const moveWithin=(dir)=>{
       if (r1===r2 && c1===c2){
         moveSelection(dir);
       } else {
-        // if selection is multi, move within bounds and wrap
         const {r,c} = state.active;
         let nr=r, nc=c;
         if (dir==='right'){ nc = c+1; if (nc>c2){ nc=c1; nr = Math.min(r+1, r2); } }
         if (dir==='left'){ nc = c-1; if (nc<c1){ nc=c2; nr = Math.max(r-1, r1); } }
         if (dir==='down'){ nr = r+1; if (nr>r2){ nr=r1; nc = Math.min(c+1, c2); } }
         if (dir==='up'){ nr = r-1; if (nr<r1){ nr=r2; nc = Math.max(c-1, c1); } }
-        setActive(nr??r, nc??c); setSelection(nr??r, nc??c, nr??r, nc??c);
-        getCell(nr,nc).focus();
+        setActive(nr !== undefined ? nr : r, nc !== undefined ? nc : c);
+        setSelection(nr !== undefined ? nr : r, nc !== undefined ? nc : c,
+                     nr !== undefined ? nr : r, nc !== undefined ? nc : c);
+        getCell(nr !== undefined ? nr : r, nc !== undefined ? nc : c).focus();
       }
     };
     if (e.key==='Enter'){ e.preventDefault(); if (e.shiftKey) moveWithin('up'); else moveWithin('down'); }
@@ -235,7 +224,6 @@ export function createGrid(container, opts = {}){
   async function pasteFromClipboard(){ pasteTSV(await readFromClipboard()); }
 
   function pushUndo(changes){
-    // changes: [{r,c, old, val}]
     state.undo.push(changes);
     state.redo.length = 0;
   }
@@ -309,7 +297,6 @@ export function createGrid(container, opts = {}){
     pushUndo(changes); applyChanges(changes);
   }
 
-  // Drag-fill (including numeric series)
   let isFilling=false, fillStart=null;
   fillHandle.addEventListener('mousedown', (e)=>{
     isFilling=true; fillStart={...state.selection};
@@ -321,7 +308,6 @@ export function createGrid(container, opts = {}){
     const el = document.elementFromPoint(e.clientX, e.clientY);
     if (el && el.classList.contains('cell')){
       const r=+el.dataset.r, c=+el.dataset.c;
-      // Extend selection rectangle to here
       setSelection(fillStart.r1, fillStart.c1, r, c);
     }
   }
@@ -330,28 +316,21 @@ export function createGrid(container, opts = {}){
     isFilling=false;
     const src = fillStart;
     const dst = state.selection;
-    // determine fill direction and size
     const changes=[];
     const srcRows = src.r2 - src.r1 + 1;
     const srcCols = src.c2 - src.c1 + 1;
-
-    // collect source values
     const srcVals = [];
     for(let r=src.r1;r<=src.r2;r++){
       const row=[]; for(let c=src.c1;c<=src.c2;c++) row.push(state.data[r][c] ?? ''); srcVals.push(row);
     }
-
     for(let r=dst.r1;r<=dst.r2;r++){
       for(let c=dst.c1;c<=dst.c2;c++){
         const rr = (r - dst.r1) % srcRows;
         const cc = (c - dst.c1) % srcCols;
         let base = srcVals[rr][cc];
-        // numeric series if expanding beyond source
         if ((dst.r2-dst.r1+1) > srcRows || (dst.c2-dst.c1+1) > srcCols){
-          // try parse number
           const num = parseFloat(base);
           if (!isNaN(num)){
-            // compute offset based on total steps from original position
             const stepsR = Math.floor((r - src.r1) / srcRows);
             const stepsC = Math.floor((c - src.c1) / srcCols);
             const step = Math.max(stepsR, stepsC);
@@ -362,15 +341,12 @@ export function createGrid(container, opts = {}){
       }
     }
     pushUndo(changes); applyChanges(changes);
-    // restore selection to dst
     setSelection(dst.r1,dst.c1,dst.r2,dst.c2);
   }
 
-  // Row/Column ops
   function insertRows(at, count){
     const newRows = Array.from({length: count}, ()=> Array(state.cols).fill(''));
     state.data.splice(at, 0, ...newRows);
-    // rebuild body for simplicity
     rebuild();
   }
   function insertCols(at, count){
@@ -401,10 +377,8 @@ export function createGrid(container, opts = {}){
   }
 
   function rebuild(){
-    // Recreate table body and headers to reflect rows/cols/merges/widths
     while (thead.firstChild) thead.removeChild(thead.firstChild);
     while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-    // headers
     const headRow = document.createElement('tr');
     const corner = document.createElement('th'); corner.className='corner'; headRow.appendChild(corner);
     for(let c=0;c<state.data[0].length;c++){
@@ -426,7 +400,6 @@ export function createGrid(container, opts = {}){
     }
     thead.appendChild(headRow);
     state.rows = state.data.length; state.cols = state.data[0].length;
-    // body
     for (let r=0;r<state.rows;r++){
       const tr = document.createElement('tr');
       const th = document.createElement('th'); th.className='th-row'; th.textContent=(r+1); tr.appendChild(th);
@@ -443,16 +416,13 @@ export function createGrid(container, opts = {}){
       }
       tbody.appendChild(tr);
     }
-    // apply merges
     applyMerges();
-    // restore selection + active (clamp if needed)
     setActive(clamp(state.active.r,0,state.rows-1), clamp(state.active.c,0,state.cols-1));
     setSelection(0,0,0,0);
     updateSelectionVisuals();
   }
 
   function applyMerges(){
-    // Clear all spans first
     for (let r=0;r<state.rows;r++){
       for(let c=0;c<state.cols;c++){
         const td=getCell(r,c);
@@ -460,7 +430,6 @@ export function createGrid(container, opts = {}){
         td.removeAttribute('rowspan'); td.removeAttribute('colspan');
       }
     }
-    // Apply merges
     for (const m of state.merges){
       const master = getCell(m.r1, m.c1);
       master.setAttribute('rowspan', (m.r2-m.r1+1));
@@ -475,7 +444,7 @@ export function createGrid(container, opts = {}){
   }
 
   function autoFitColumn(c){
-    let max = 40; // min
+    let max = 40;
     for (let r=0;r<state.rows;r++){
       const val = String(state.data[r][c] ?? '');
       max = Math.max(max, 10 + val.length * 8);
@@ -491,7 +460,7 @@ export function createGrid(container, opts = {}){
     emit(event, payload){ (this._ev?.[event]||[]).forEach(fn=>fn(payload)); },
     get data(){ return state.data; },
     set data(d){ state.data = d; rebuild(); },
-    clear(){ const ch=[]; for(let r=0;r<state.rows;r++)for(let c=0;c<state.cols;c++) if(state.data[r][c]!=='') ch.push({r,c,old:state.data[r][c], val:''}); pushUndo(ch); applyChanges(ch); },
+    clear(){ const ch=[]; for(let r=0;r<state.rows;r++)for(let c=0;c<state.cols;c++) if(state.data[r][c]!=='') ch.push({r,c,old:state.data[r][c], val:''}); if(ch.length){ pushUndo(ch); applyChanges(ch);} },
     reset(r,c){ state.data = Array.from({length:r},()=>Array(c).fill('')); state.merges=[]; state.colWidths=Array(c).fill(100); rebuild(); },
     setColumnWidths(w){ state.colWidths = w.slice(0, state.cols); rebuild(); },
     getColumnWidths(){ return state.colWidths.slice(); },
@@ -518,7 +487,7 @@ export function createGrid(container, opts = {}){
           changes.push({r,c, old: state.data[r][c], val: arr[i][j]});
         }
       }
-      pushUndo(changes); applyChanges(changes);
+      if(changes.length){ pushUndo(changes); applyChanges(changes); }
     },
     autoFitColumn,
   };
@@ -534,13 +503,11 @@ export function createGrid(container, opts = {}){
     getCell(nr,nc).focus();
   }
 
-  // Double-click column header to auto-fit
   thead.addEventListener('dblclick', (e)=>{
     const th = e.target.closest('.th-col'); if (!th) return;
     autoFitColumn(+th.dataset.c);
   });
 
-  // Initial focus
   setActive(0,0); setSelection(0,0,0,0); updateSelectionVisuals();
 
   return api;

@@ -1,7 +1,6 @@
 import { toTSV } from './utils.js';
 
 export function setupExportImport(grid){
-  // Export
   document.getElementById('export-tsv').addEventListener('click', ()=>{
     const tsv = toTSV(grid.data);
     downloadBlob(new Blob([tsv], {type:'text/tab-separated-values'}), 'voice-sheet.tsv');
@@ -19,7 +18,6 @@ export function setupExportImport(grid){
     downloadBlob(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'voice-sheet.xlsx');
   });
 
-  // Import
   const importers = [
     ['file-import-xlsx', handleXLSX],
     ['file-import-csv',  handleCSV],
