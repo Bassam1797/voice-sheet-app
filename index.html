@@ -1,80 +1,82 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Voice Sheet App</title>
-<link rel="stylesheet" href="assets/style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Voice Sheet App</title>
+  <link rel="stylesheet" href="assets/style.css"/>
+
+  <!-- ID shim so the context menu styles also apply to #context-menu -->
+  <style>
+    /* Mirror styles defined for #ctxMenu in assets/style.css */
+    #context-menu{
+      display:none; position:fixed; z-index:10000; background:#fff;
+      border:1px solid #e3e6ea; border-radius:10px;
+      box-shadow:0 12px 32px rgba(0,0,0,.12); min-width:180px; overflow:hidden;
+    }
+    #context-menu .ctx-item{
+      display:block; width:100%; text-align:left; padding:10px 12px;
+      background:#fff; border:0; cursor:pointer; font-size:14px;
+    }
+    #context-menu .ctx-item:hover{ background:#f5f7ff; }
+    #context-menu .ctx-item.danger{ color:#b00020; }
+    #context-menu .ctx-sep{ margin:0; border:0; border-top:1px solid #eee; }
+  </style>
 </head>
 <body>
-<header>
-  <h1>Voice Sheet App</h1>
-  <div class="toolbar">
-    <!-- Voice direction -->
-    <label>Direction:
-      <select id="direction">
-        <option value="right">Right →</option>
-        <option value="left">← Left</option>
-        <option value="down">Down ↓</option>
-        <option value="up">↑ Up</option>
-      </select>
-    </label>
 
-    <!-- Merge/unmerge -->
-    <button id="mergeBtn">Merge</button>
-    <button id="unmergeBtn">Unmerge</button>
+  <header>
+    <h1>Voice Sheet App</h1>
 
-    <!-- Row/col controls -->
-    <button id="insertRowBtn">Insert Row</button>
-    <button id="deleteRowBtn">Delete Row</button>
-    <button id="insertColBtn">Insert Col</button>
-    <button id="deleteColBtn">Delete Col</button>
+    <div class="toolbar">
+      <!-- Row ops -->
+      <button id="btn-insert-row-above">+ Row ↑</button>
+      <button id="btn-insert-row-below">+ Row ↓</button>
+      <button id="btn-delete-row">Delete Row</button>
+      <button id="btn-move-row-up">Move Row ↑</button>
+      <button id="btn-move-row-down">Move Row ↓</button>
 
-    <!-- Formatting controls -->
-    <select id="fontSize">
-      <option value="">Font Size</option>
-      <option value="12px">12</option>
-      <option value="14px">14</option>
-      <option value="16px">16</option>
-      <option value="18px">18</option>
-      <option value="20px">20</option>
-      <option value="24px">24</option>
-    </select>
-    <button id="boldBtn"><b>B</b></button>
-    <button id="italicBtn"><i>I</i></button>
-    <button id="underlineBtn"><u>U</u></button>
+      <!-- Col ops -->
+      <button id="btn-insert-col-left">+ Col ←</button>
+      <button id="btn-insert-col-right">+ Col →</button>
+      <button id="btn-delete-col">Delete Col</button>
+      <button id="btn-move-col-left">Move Col ←</button>
+      <button id="btn-move-col-right">Move Col →</button>
 
-    <label>Text Color <input type="color" id="textColor"></label>
-    <label>Background <input type="color" id="bgColor"></label>
+      <!-- Merge -->
+      <button id="btn-merge">Merge</button>
+      <button id="btn-unmerge">Unmerge</button>
 
-    <button id="alignLeftBtn">⯇</button>
-    <button id="alignCenterBtn">≡</button>
-    <button id="alignRightBtn">⯈</button>
+      <!-- Column width -->
+      <button id="btn-autofit" title="Auto-fit current column">Auto-fit</button>
 
-    <button id="wrapTextBtn">Wrap</button>
+      <!-- File -->
+      <button id="btn-export" title="Export selection to TSV">Export TSV</button>
+      <button id="btn-import" title="Import TSV into selection">Import TSV</button>
 
-    <!-- Export -->
-    <button id="exportBtn">Export Excel</button>
+      <!-- Grid lifecycle -->
+      <button id="btn-new-grid" title="Create a new blank grid">New Grid</button>
+      <button id="btn-clear-grid" title="Clear all cells">Clear</button>
+    </div>
+  </header>
+
+  <!-- Grid host -->
+  <main id="grid-container"></main>
+
+  <!-- Status bar -->
+  <section class="status">
+    <div>Active cell: <span id="status-cell">A1</span></div>
+  </section>
+
+  <!-- Right-click context menu (IDs match main.js) -->
+  <div id="context-menu">
+    <button id="ctx-copy"   class="ctx-item">Copy</button>
+    <button id="ctx-cut"    class="ctx-item">Cut</button>
+    <button id="ctx-paste"  class="ctx-item">Paste</button>
+    <hr class="ctx-sep">
+    <button id="ctx-delete" class="ctx-item danger">Delete</button>
   </div>
-</header>
 
-<main id="gridContainer"></main>
-
-<section class="status">
-  <div>Active cell: <span id="activeCell">A1</span></div>
-  <div>Mic: <span id="micStatus">off</span></div>
-  <div>Heard: <span id="lastHeard">—</span></div>
-</section>
-
-<!-- Context menu -->
-<div id="ctxMenu" style="display:none;">
-  <button data-act="copy" class="ctx-item">Copy</button>
-  <button data-act="cut" class="ctx-item">Cut</button>
-  <button data-act="paste" class="ctx-item">Paste</button>
-  <hr class="ctx-sep">
-  <button data-act="delete" class="ctx-item danger">Delete</button>
-</div>
-
-<script type="module" src="src/main.js"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>
