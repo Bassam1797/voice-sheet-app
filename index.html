@@ -6,9 +6,9 @@
   <title>Voice Sheet App</title>
   <link rel="stylesheet" href="assets/style.css"/>
 
-  <!-- ID shim so the context menu styles also apply to #context-menu -->
+  <!-- Context-menu shim so styles apply to #context-menu as well -->
   <style>
-    /* Mirror styles defined for #ctxMenu in assets/style.css */
+    /* Context menu */
     #context-menu{
       display:none; position:fixed; z-index:10000; background:#fff;
       border:1px solid #e3e6ea; border-radius:10px;
@@ -22,50 +22,42 @@
     #context-menu .ctx-item.danger{ color:#b00020; }
     #context-menu .ctx-sep{ margin:0; border:0; border-top:1px solid #eee; }
 
-    /* Dropdown menu styles */
-    .dropdown {
-      position: relative;
-      display: inline-block;
+    /* Export/Import dropdowns */
+    .dropdown{ position:relative; display:inline-block; }
+    .dropbtn{
+      background:#4CAF50; color:#fff; padding:6px 10px; font-size:14px;
+      border:none; cursor:pointer; border-radius:8px;
     }
-    .dropbtn {
-      background-color: #4CAF50;
-      color: white;
-      padding: 6px 10px;
-      font-size: 14px;
-      border: none;
-      cursor: pointer;
+    .dropdown-content{
+      display:none; position:absolute; background:#fff; min-width:180px;
+      box-shadow:0 8px 16px rgba(0,0,0,.2); z-index:1000; border-radius:8px; overflow:hidden;
     }
-    .dropdown-content {
-      display: none;
-      position: absolute;
-      background-color: white;
-      min-width: 160px;
-      box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
-      z-index: 1000;
+    .dropdown-content a{
+      display:block; padding:8px 12px; text-decoration:none; color:#111;
     }
-    .dropdown-content a {
-      color: black;
-      padding: 8px 12px;
-      text-decoration: none;
-      display: block;
-    }
-    .dropdown-content a:hover {
-      background-color: #f1f1f1;
-    }
-    .dropdown:hover .dropdown-content {
-      display: block;
-    }
-    .dropdown:hover .dropbtn {
-      background-color: #45a049;
-    }
+    .dropdown-content a:hover{ background:#f1f1f1; }
+    .dropdown:hover .dropdown-content{ display:block; }
+    .dropdown:hover .dropbtn{ background:#3da845; }
   </style>
 </head>
 <body>
-
   <header>
     <h1>Voice Sheet App</h1>
 
     <div class="toolbar">
+      <!-- Mic + navigation -->
+      <button id="micBtn" title="Start/stop microphone">Mic ▶</button>
+      <label>Direction:
+        <select id="direction">
+          <option value="right" selected>Right →</option>
+          <option value="left">← Left</option>
+          <option value="down">Down ↓</option>
+          <option value="up">↑ Up</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="autoAdvance" checked> Auto-advance</label>
+      <label>Silence (ms): <input id="silenceMs" type="number" value="1000" min="200" step="100" style="width:6ch"></label>
+
       <!-- Row ops -->
       <button id="btn-insert-row-above">+ Row ↑</button>
       <button id="btn-insert-row-below">+ Row ↓</button>
@@ -112,7 +104,7 @@
     </div>
   </header>
 
-  <!-- Grid host -->
+  <!-- Grid host (table grid is rendered here by grid.js) -->
   <main id="grid-container"></main>
 
   <!-- Status bar -->
@@ -120,7 +112,7 @@
     <div>Active cell: <span id="status-cell">A1</span></div>
   </section>
 
-  <!-- Right-click context menu (IDs match main.js) -->
+  <!-- Right-click context menu -->
   <div id="context-menu">
     <button id="ctx-copy"   class="ctx-item">Copy</button>
     <button id="ctx-cut"    class="ctx-item">Cut</button>
@@ -131,6 +123,7 @@
 
   <!-- SheetJS for Excel import/export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- App logic (uses table-based grid.js) -->
   <script type="module" src="src/main.js"></script>
 </body>
 </html>
