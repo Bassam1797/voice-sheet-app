@@ -1,0 +1,13 @@
+# OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+# Editors
+.vscode/
+.idea/
+# Logs
+*.log
+# Node (only if you later add a build)
+node_modules/
+dist/
