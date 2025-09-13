@@ -1015,7 +1015,7 @@ function attachGlobalShortcuts(){
 
 /* ================== Public-ish API ================== */
 function createGrid(hostEl, rows, cols){
-  container=hostEl; ROWS=rows||600; COLS=cols||26;
+  container=hostEl; ROWS=rows||1200; COLS=cols||52;
   var r,c;
   cells=[];
   for(r=0;r<ROWS;r++){ var row=[]; for(c=0;c<COLS;c++) row.push({value:'', style:{}}); cells.push(row); }
@@ -1516,7 +1516,7 @@ function wireHelpModal() {
 }
 
 /* ================== Boot ================== */
-createGrid(document.getElementById('grid-container'), 600, 26);
+createGrid(document.getElementById('grid-container'), 1200, 52);
 var scLeft=document.getElementById('scroll-left'); if (scLeft) (scLeft)&&scLeft.addEventListener('click', function(){ var m=document.querySelector('main'); if(m) m.scrollBy({ left: -200, behavior: 'smooth' }); });
 var scRight=document.getElementById('scroll-right'); if (scRight) (scRight)&&scRight.addEventListener('click', function(){ var m=document.querySelector('main'); if(m) m.scrollBy({ left: 200, behavior: 'smooth' }); });
 
